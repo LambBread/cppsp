@@ -7,8 +7,9 @@ Download the cppsp_compiler.exe or compiler the sourcecode by yourself
 * Cannot accept any space/blank before keyworld!
 * No multi-line!Do not use something like:
 ```
-print(1)☑️
+print(1)✔️
  print(1)🚫
+@inject(int a;float b;)✔️
 @inject(int a;
 float b;)🚫
 ```
@@ -34,4 +35,17 @@ lib.ini:C:\...\lib1,c:\...\lib2
 ## Example
 ```cpp
  print("hello world")
+```
+```cpp
+@command("-mtune=native   -fomit-frame-pointer -static-libgcc   -ffunction-sections -fdata-sections -Wl,--gc-sections  -Wl,--as-needed  -s  -Wl,--strip-all  -Os -m64")
+import iostream,vector
+@function<<using namespace std;>>
+print("12\n"," ",1," ",2.1,true,false," ")
+print( "abc")
+print(1,"\n") //abv
+//print(1.1)
+@inject(int x=1;int y=2;int z=3; auto is_bool = [](const std::string& s){ return s == "true" || s == "false";};)
+input(x,y,z)
+@function<<class cls{vector< string> cars = {"Volvo", "BMW", "Ford", "Mazda"};};>>
+print(x+y+z)
 ```
