@@ -36,6 +36,7 @@ lib.ini:C:\...\lib1,c:\...\lib2
 ```cpp
  print("hello world")
 ```
+* another exmaple:
 ```cpp
 @command("-mtune=native   -fomit-frame-pointer -static-libgcc   -ffunction-sections -fdata-sections -Wl,--gc-sections  -Wl,--as-needed  -s  -Wl,--strip-all  -Os -m64")
 import iostream,vector
