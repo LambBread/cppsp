@@ -5,7 +5,7 @@ Download the cppsp_compiler.exe or compiler the sourcecode by yourself
 * Requirement:prepare your own c++ compiler and set it's folder to environment path 
 * Optional: put the folder path of exe to environment
 # Warning ⚠️
-* Cannot accept any space/blank before keyworld!
+* Cannot accept any space/blank before keyword!
 * No multi-line!Do not use something like:
 ```
 print(1)✔️
