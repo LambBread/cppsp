@@ -1,5 +1,5 @@
 # cppsp
-cppsp -a script language base on c++
+cppsp -a scripting language base on c++
 ## Install
 Download the cppsp_compiler.exe or compiler the sourcecode by yourself
 * Requirement:prepare your own c++ compiler and set it's folder to environment path 
