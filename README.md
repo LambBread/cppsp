@@ -27,6 +27,7 @@ lib.ini:C:\...\lib1,c:\...\lib2
 ## Keyword
 * #useclang or #usegcc : use clang++ or g++ compile command
 * @command("..."): add command when compile like:-Os、-m64
+* #overwrite:make @command() overwrite g++ .... or clang++ compile command like @command("g++ -Os -m64 -nostdlib  -shared   -o dll.dll dll.cpp") and add "*/" in the end of int main{..}
 * import :import header in c++ and accept import x,y,.....
 * @funcuion<<...>>: inject everything(void()、int()、bool()、even #define and using namespace) in <<...>> to the space under #include above int main()
 * @inject(...) :inject everything in (...) to int main{...}
