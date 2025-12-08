@@ -52,3 +52,10 @@ input(x,y,z)
 @function<<class cls{vector< string> cars = {"Volvo", "BMW", "Ford", "Mazda"};};>>
 print(x+y+z)
 ```
+* simple dll
+```cpp
+#overwrite
+@command("g++ -Os -m64 -nostdlib  -shared   -o dll.dll dll.cpp")
+@function<<extern "C" __declspec(dllexport) int add(int a, int b) { return a * b;}>>
+@function<</*>>
+```
