@@ -8,6 +8,9 @@
 #include <cstdlib>
 #include <unordered_map>
 #include <functional>
+
+//檢查dll依賴:objdump -p cppsp_compiler.exe | findstr ".dll" 
+
 namespace fs = std::filesystem;
 bool Ifiostream=0;
 // ====== 新增：萬用語法指令註冊器 ======
@@ -120,10 +123,10 @@ int main(int argc, char* argv[]) {
     return out;
 });
 
-// println() 指令
 registerCommand("println", [](const std::string& args) {
     return "printf(" + args + "); printf(\"\\n\");\n";
 });
+
 registerCommand("input", [](const std::string& args) {
         std::stringstream ss(args);
     std::string tok,out;
@@ -204,7 +207,8 @@ if (!comment && importline.find("import ") != std::string::npos) {
             }
         }
     }
-   
+    bool enableoverwrite = false;
+ if(enableoverwrite) outfile << "/*";
         outfile << "int main() {\n";
     std::string line;
     std::string extraFlags; // 存 @command() 的內容
@@ -219,18 +223,20 @@ if (!comment && importline.find("import ") != std::string::npos) {
         }
         if(line.find("#useclang")!= std::string::npos){enableclang=true;}
         if(line.find("#usegcc")!= std::string::npos){enableclang=false;}
+        if(line.find("#overwrite")!= std::string::npos){enableoverwrite=true;}
     }
 
     outfile << "\nreturn 0;\n}\n";
+     if(enableoverwrite) outfile << "*/";
     outfile.close();
 
-    fs::path exePath = cpsPath.parent_path() / (cpsPath.stem().string() + ".exe");
+    fs::path exePath = cpsPath.parent_path() / (cpsPath.stem().string() );// .exe後綴 : + ".exe");
 
     // 讀 include.ini 和 lib.ini
     std::string includeFlags = parseIni("include.ini", "-I");
     std::string libFlags = parseIni("lib.ini", "-L");
 
-    std::string gppCommand = "g++.exe \"" + cppPath.string() + "\" -o \"" + exePath.string() + "\" "
+    std::string gppCommand = "g++ \"" + cppPath.string() + "\" -o \"" + exePath.string() + "\" "
                              + extraFlags + " "
                              + includeFlags + " "
                              + libFlags;
@@ -238,6 +244,7 @@ if (!comment && importline.find("import ") != std::string::npos) {
                              + extraFlags + " "
                              + includeFlags + " "
                              + libFlags;
+    if(enableoverwrite) gppCommand = extraFlags + " " + includeFlags + " "  + libFlags;
 
     std::cout << "Compiling: " << gppCommand << "\n";
     int ret = system(gppCommand.c_str());
@@ -247,6 +254,8 @@ if (!comment && importline.find("import ") != std::string::npos) {
         return 1;
     }
 
-    std::cout << "Compilation succeeded! Executable: " << exePath.string() << "\n";
+   if(!enableoverwrite) std::cout << "Compilation succeeded! Executable: " << exePath.string() << "\n";
+   if(enableoverwrite) std::cout << "Compilation succeeded!\n";
+     if(!enableoverwrite) int runexe= system(exePath.string().c_str());
     return 0;
 }
