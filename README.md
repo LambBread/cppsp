@@ -1,4 +1,4 @@
-# cppsp
+# cppsp<img src="cppsp.png" width="5%" alt="cppsp logo"/>
 cppsp -a scripting language base on c++
 ## Install
 Download the cppsp_compiler.exe or compiler the sourcecode by yourself
