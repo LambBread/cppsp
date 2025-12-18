@@ -6,7 +6,7 @@ Download the cppsp_compiler.exe or compiler the sourcecode by yourself
 * Requirement:a 64bits c++ compiler to make sure exe can be open
 * Optional: put the folder path of exe to environment  
 # Warning ⚠️
-* Cannot accept any space/blank before keyword! ⚠️Only under v1.2 
+* Cannot accept any space/blank before keyword!⚠️Only under v1.2 
 * No multi-line!Do not use something like:
 ```
 print(1)✔️
