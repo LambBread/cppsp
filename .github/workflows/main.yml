@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       file_path:
-        description: '要建立的 .cppsp 檔案路徑（例如 scripts/script.cppsp）'
+        description: ' .cppsp file path（like: scripts/script.cppsp）'
         required: true
         default: 'script.cppsp'
       file_content:
-        description: '檔案內容（完整 .cppsp 程式碼）'
+        description: 'file content（full .cppsp code）'
         required: true
         type: string
 
