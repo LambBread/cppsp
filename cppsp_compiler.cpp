@@ -12,13 +12,50 @@
 //檢查dll依賴:objdump -p cppsp_compiler.exe | findstr ".dll" 
 
 namespace fs = std::filesystem;
-bool Ifiostream=0;
+bool Ifiostream=0;bool commentInReg=false;
 // ====== 新增：萬用語法指令註冊器 ======
 std::unordered_map<std::string, std::function<std::string(const std::string&)>> cpsCommands;
 std::unordered_map<std::string, std::string> g_vars; // 全域變數
 void registerCommand(const std::string& name,
                      std::function<std::string(const std::string&)> handler) {
     cpsCommands[name] = handler;
+}
+//註解
+bool isComment(const std::string& line) {
+   bool in_string = false;
+    bool escape = false;
+
+    for (size_t i = 0; i + 1 < line.size(); ++i) {
+        char c = line[i];
+
+        if (escape) {
+            escape = false;
+            continue;
+        }
+
+        if (c == '\\') {
+            escape = true;
+            continue;
+        }
+
+        if (c == '"') {
+            in_string = !in_string;
+            continue;
+        }
+
+        // 第一個非空白字元前遇到 //
+        if (!in_string) {
+            if (c == ' ' || c == '\t')
+                continue;
+
+            if (c == '/' && line[i + 1] == '/')
+                return true;
+
+            // 一旦遇到有效字元，就不可能是註解行
+            return false;
+        }
+    }
+    return false;
 }
 //去空格
 inline std::string noblank(const std::string& token) {
@@ -43,7 +80,7 @@ inline std::string noblank(const std::string& token) {
     // 其他情況也當字串
     return "printf(\"" + v + "\");\n";}
 
-// 萃取 print("abc",1,2) 裡面的參數部分
+// 萃取 print("abc",1,2) 裡面的參數部分以及其他() 內容
 std::string extractArgs(const std::string& line) {
     size_t l = line.find("(");
     size_t r = line.rfind(")");
@@ -52,9 +89,11 @@ std::string extractArgs(const std::string& line) {
 }
 // 通用呼叫，用於主迴圈：直接給一行程式碼，它會自動選擇指令
 std::string runCommand(const std::string& line) {
+
     for (auto& p : cpsCommands) {
-        if (line.rfind(p.first, 0) == 0) { // 以指令開頭
-            if(p.first == "@function") { continue;}
+        if (line.find(p.first) != std::string::npos) { // 以指令開頭
+         //  if(p.first.find("//")) { continue;}
+          if(commentInReg) return "";
             std::string args = extractArgs(line);
             return p.second(args);
         }
@@ -95,6 +134,7 @@ auto is_number = [](const std::string& s){
         while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
         return s;
     };
+   
 int main(int argc, char* argv[]) {
     bool enableclang =false;
     //註冊
@@ -171,8 +211,7 @@ registerCommand("@inject", [](const std::string& args) {
     outfile << "#include <stdio.h>\n";
     std::string importline; std::ifstream fileinclude(cpsPath);
 while (std::getline(fileinclude, importline)) {
-    bool comment=0;
-    if (importline.find("//") != std::string::npos) { comment =1;continue; }
+  bool comment=isComment(importline);
 if (!comment && importline.find("import ") != std::string::npos) {
     size_t pos = importline.find("import ");
     std::string imports = importline.substr(pos + 7); // "import " 長度 7
@@ -201,6 +240,8 @@ if (!comment && importline.find("import ") != std::string::npos) {
             size_t pos = funcline.find("@function<<");
             std::string funcname = funcline.substr(pos + 11); // "@function(" 長度 10
             funcname = funcname.substr(0, funcname.find(">>"));
+            bool comment=isComment(funcline);
+             if (comment) {continue; }
             if (funcname.empty()) continue;
              else {
                 outfile <<funcname+"\n";
@@ -213,8 +254,11 @@ if (!comment && importline.find("import ") != std::string::npos) {
     std::string line;
     std::string extraFlags; // 存 @command() 的內容
     while (std::getline(infile, line)) {
+        commentInReg=false;
+        commentInReg=isComment(line);
         std::string code = runCommand(line);
         if (!code.empty()) outfile << code;
+        if (commentInReg) {continue; }
         if (line.find("@command(") != std::string::npos) {
             size_t start = line.find("\"");
             size_t end = line.rfind("\"");
