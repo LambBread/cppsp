@@ -1,0 +1,43 @@
+on:
+  push:
+    branches: [ "first" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-run:
+    # 使用 Windows 環境以符合 cppsp_compiler.exe 的運行需求 [1]
+    runs-on: windows-latest
+
+    steps:
+      # 1. 檢出您的倉庫代碼
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 確認環境中有 C++ 編譯器 (windows-latest 預裝了 MinGW/g++) [1]
+      - name: Check C++ Compiler
+        run: g++ --version
+
+      # 3. 下載 cppsp_compiler.exe [1, 2]
+      # 這裡假設從您的 GitHub 儲存庫下載最新的編譯器程式
+      - name: Download cppsp_compiler
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/user19870/cppsp/blob/First/cppsp_compiler.exe" -OutFile "cppsp_compiler.exe"
+
+      # 4. 準備環境設定檔案 (Optional) [3]
+      # 如果您的腳本需要特定的 include 或 lib 路徑，可以建立 .ini 檔案
+      - name: Prepare ini files
+        shell: pwsh
+        run: |
+          echo "C:\sample\include" > include.ini
+          echo "C:\sample\lib" > lib.ini
+
+      # 5. 執行 cppsp 編譯與運行 [3, 4]
+      # 假設您的腳本檔案名稱為 script.cppsp
+      - name: Run cppsp Script
+        shell: pwsh
+        run: |
+          # 使用編譯器處理腳本 [3]
+          # 注意：script.cppsp 內部可包含 @command("-Os -m64") 來優化 [4, 5]
+          .\cppsp_compiler.exe script.cppsp
+         
