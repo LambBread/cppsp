@@ -5,16 +5,6 @@ Download the cppsp_compiler.exe or compiler the sourcecode by yourself
 * Requirement:prepare your own c++ compiler and set it's folder to environment path(environment variable)
 * Requirement:a 64bits c++ compiler to make sure exe can be open
 * Optional: put the folder path of exe to environment  
-# Warning ⚠️
-* Cannot accept any space/blank before keyword!⚠️Only under v1.2 
-* No multi-line!Do not use something like:
-```
-print(1)✔️
- print(1)🚫
-@inject(int a;float b;)✔️
-@inject(int a;
-float b;)🚫
-```
 ## Usage
 * Use cmd or other console to compiler .cppsp file:
 cppsp_compiler(if not in environment path:.\cppsp_compiler.exe or c:\...\cppsp_compiler.exe) script.cppsp
@@ -25,6 +15,7 @@ lib.ini:C:\...\lib1,c:\...\lib2
 * can compile when there is only print("hello world") in .cppsp
 * can use almost c++ header by import
 * can use c++ code  by @inject and @function
+* enable indentation and multi-line after v1.3
 ## Keyword
 * #useclang or #usegcc : use clang++ or g++ compile command
 * @command("..."): add command when compile like:-Os、-m64
@@ -35,6 +26,19 @@ lib.ini:C:\...\lib1,c:\...\lib2
 * print(): print content to console like print("12\n"," ",1," ",2.1,true,false," ")
 * input(): input data to variables,but need @inject() to declare varibles
 * //:comment
+### Warning ⚠️
+* Cannot accept any space/blank before keyword before v1.2! 
+* No multi-line before v1.3!
+* ＠command() will never be multi-line but you can use following as an alternative
+```
+＠command("-f1 -f2 ..... -f5") 
+＠command("-f6 -f7 ....-f10") 
+```
+under ＃overwritender ＃overwrite
+```
+＠command("g++ -Os -m64 -nostdlib  -shared ") 
+＠command(" -o dll.dll dll.cpp") 
+ ```
 ## Example
 ```cpp
  print("hello world")
