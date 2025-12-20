@@ -15,10 +15,12 @@ namespace fs = std::filesystem;
 bool Ifiostream=0;bool commentInReg=false;
 // ====== 新增：萬用語法指令註冊器 ======
 std::unordered_map<std::string, std::function<std::string(const std::string&)>> cpsCommands;
-std::unordered_map<std::string, std::string> g_vars; // 全域變數
-void registerCommand(const std::string& name,
+std::unordered_map<std::string, std::string> g_vars; // 全域變數 
+std::unordered_map<std::string, std::string>func_head_end ;
+void registerCommand(const std::string& name,const std::string& start,const std::string& end,
                      std::function<std::string(const std::string&)> handler) {
-    cpsCommands[name] = handler;
+    cpsCommands[name] = handler; 
+     func_head_end[start]=end;
 }
 //註解
 bool isComment(const std::string& line) {
@@ -51,7 +53,7 @@ bool isComment(const std::string& line) {
             if (c == '/' && line[i + 1] == '/')
                 return true;
 
-            // 一旦遇到有效字元，就不可能是註解行
+            // 一旦遇到有效字元，就不可能是註解行，直接返回 false所以不會跑下一個字
             return false;
         }
     }
@@ -79,25 +81,116 @@ inline std::string noblank(const std::string& token) {
     if (!v.empty() && v.front()=='"' && v.back()=='"')  return "printf(" + v + ");\n";
     // 其他情況也當字串
     return "printf(\"" + v + "\");\n";}
-
-// 萃取 print("abc",1,2) 裡面的參數部分以及其他() 內容
-std::string extractArgs(const std::string& line) {
-    size_t l = line.find("(");
-    size_t r = line.rfind(")");
-    if (l == std::string::npos || r == std::string::npos || r < l) return "";
-    return line.substr(l + 1, r - l - 1);
-}
-// 通用呼叫，用於主迴圈：直接給一行程式碼，它會自動選擇指令
-std::string runCommand(const std::string& line) {
-
-    for (auto& p : cpsCommands) {
-        if (line.find(p.first) != std::string::npos) { // 以指令開頭
-         //  if(p.first.find("//")) { continue;}
-          if(commentInReg) return "";
-            std::string args = extractArgs(line);
-            return p.second(args);
+    
+size_t findMatchingEnd(const std::string& line, size_t start, const std::string& h, const std::string& e) {
+    int depth = 1;
+    // 確保 start 不越界
+    if (start >= line.size()) return std::string::npos;
+    
+    for (size_t i = start; i + e.length() <= line.size(); ++i) {
+        // 先檢查是否遇到新的起始符號 (嵌套)
+        if (line.compare(i, h.length(), h) == 0) {
+            depth++;
+            i += h.length() - 1; // 跳過符號長度
+        }
+        // 再檢查是否遇到結束符號
+        else if (line.compare(i, e.length(), e) == 0) {
+            depth--;
+            if (depth == 0)
+                return i;
+            i += e.length() - 1; // 跳過符號長度
         }
     }
+    return std::string::npos;
+}
+// 萃取 print("abc",1,2) 裡面的參數部分以及其他() 內容
+std::string extractArgs(const std::string& line, const std::string& h, const std::string& e, bool& keywordEnd) {
+    keywordEnd = true; // 預設為已結束
+    size_t l = line.find(h);
+    
+    // 如果連頭都找不到，直接回傳空或原字串（視需求而定，這裡假設若沒頭則不處理）
+    if (l == std::string::npos) {
+        keywordEnd = true; // 沒頭不算未完成，算找不到
+        return ""; 
+    }
+
+    // 尋找對應的結尾
+    size_t r = findMatchingEnd(line, l + h.length(), h, e);
+
+    if (r == std::string::npos) {
+        // 找不到結尾，表示多行模式，回傳 header 之後的所有內容
+        keywordEnd = false;
+        return line.substr(l + h.length());
+    } else {
+        // 找到結尾，回傳中間的內容
+        return line.substr(l + h.length(), r - (l + h.length()));
+    }
+}
+
+// 通用呼叫，用於主迴圈：直接給一行程式碼，它會自動選擇指令
+// 通用呼叫，用於主迴圈：直接給一行程式碼，它會自動選擇指令
+std::string runCommand(const std::string& line,bool iffunc) {
+    // [新增] 靜態變數，用於記憶多行狀態
+    static std::string pendingBuffer = "";     // 累積的程式碼
+    static std::string pendingCmdKey = "";     // 正在等待的指令關鍵字 (如 print)
+    static std::string pendingHead = "";       // 正在等待的起始符 (如 "(")
+    static std::string pendingEnd = "";        // 正在等待的結束符 (如 ")")
+    // 假設 cpsCommands 值的型別是 std::function<std::string(std::string)>
+    static std::function<std::string(std::string)> pendingFunc = nullptr; 
+    // 判斷是否處於多行模式
+    bool inMultiLine = !pendingBuffer.empty();
+    // 如果是註解中，或是空行，且不在多行模式下，直接略過
+    if (!inMultiLine && (line.find("//") == 0 || line.empty())) return ""; 
+    // 注意：原本的 commentInReg 若是全域變數請保留使用，此處僅示範邏輯
+    std::string currentLine;
+    if (inMultiLine) {
+        // 多行模式：將新的一行接在緩衝區後面 (加上換行符號)
+        pendingBuffer += "\n" + line; currentLine = pendingBuffer;
+    } else {   currentLine = line;  }
+    // 如果在多行模式，直接使用記憶中的參數進行檢查，不需要重跑迴圈
+    if (inMultiLine) {
+        bool keywordEnd = false;
+        // 嘗試在累積的字串中萃取參數
+        std::string args = extractArgs(currentLine, pendingHead, pendingEnd, keywordEnd);
+        if (keywordEnd) {
+            // 找到了結尾！執行指令
+            std::string result = pendingFunc(args);
+            // 清空靜態狀態，回到單行模式
+            pendingBuffer = ""; pendingCmdKey = "";   pendingHead = "";    pendingEnd = ""; pendingFunc = nullptr;
+            return result;
+        } else {  return "";     }  }
+    // --- 以下為新指令的偵測邏輯 (原本的迴圈) ---
+
+    for (auto& p : cpsCommands) {
+        // 優化：先檢查是否包含指令，避免無效搜尋
+        size_t cmdPos = line.find(p.first); if (cmdPos == std::string::npos) continue;
+        // 確保指令不是變數的一部分 (簡單邊界檢查，可選)
+        // if (cmdPos > 0 && isalnum(line[cmdPos-1])) continue; 
+        if (commentInReg) return ""; // 假設這是全域變數
+        for (auto& note : func_head_end) {
+            const std::string& hd = note.first; const std::string& ed = note.second;
+            // 檢查這一行是否有對應的起始符號 (例如 "(")
+            if (line.find(hd) == std::string::npos) continue;
+            bool isFuncCmd = (p.first == "@function");
+            bool shouldRun = (isFuncCmd && iffunc) || (!isFuncCmd && !iffunc);
+            bool keywordEnd = false;std::string args = extractArgs(line, hd, ed, keywordEnd);
+            if (!keywordEnd) {
+                // [變更] 發現沒閉合，進入多行模式
+                if (shouldRun) {
+                pendingBuffer = line;   // 存入緩衝區
+                pendingCmdKey = p.first; 
+                pendingFunc = p.second; // 記住要執行的函數
+                pendingHead = hd;       // 記住符號
+                pendingEnd = ed;
+                return ""; // 等待下一行
+                }
+            } else {
+                // 單行直接完成，執行並回傳
+                 if (shouldRun) {
+            return p.second(args);
+        }
+        return ""; // 雖然解析成功，但當前模式不執行
+            } }  }
     return ""; // 找不到指令就忽略
 }
 
@@ -138,7 +231,7 @@ auto is_number = [](const std::string& s){
 int main(int argc, char* argv[]) {
     bool enableclang =false;
     //註冊
-    registerCommand("print", [](const std::string& args) {
+    registerCommand("print","(",")", [](const std::string& args) {
     std::stringstream ss(args);
     std::string tok;
     std::vector<std::string> v;
@@ -153,8 +246,8 @@ int main(int argc, char* argv[]) {
     else if (cur == "false") { out += "printf(\"false\");\n"; }
     else if (is_number(cur)) {
         double iorf = std::stod(cur);
-        if (iorf == (int)iorf)   out += "{ auto _t = " + cur + "; printf(\"%d\", _t); }\n";
-       else out += "{ auto _t = " + cur + "; printf(\"%g\", _t); }\n"; }
+        if (iorf == (int)iorf)   out += "{ int _t = " + cur + "; printf(\"%d\", _t); }\n";
+       else out += "{ double _t = " + cur + "; printf(\"%g\", _t); }\n"; }
        else if(Ifiostream==true) out +="std::cout<<"+cur+";\n";
        else {  out += "printf(" + cur + ");\n";}
 }
@@ -163,11 +256,11 @@ int main(int argc, char* argv[]) {
     return out;
 });
 
-registerCommand("println", [](const std::string& args) {
+registerCommand("println","(",")",  [](const std::string& args) {
     return "printf(" + args + "); printf(\"\\n\");\n";
 });
 
-registerCommand("input", [](const std::string& args) {
+registerCommand("input","(",")",  [](const std::string& args) {
         std::stringstream ss(args);
     std::string tok,out;
     std::vector<std::string> v;
@@ -180,8 +273,11 @@ registerCommand("input", [](const std::string& args) {
     return out;
 });
 
-registerCommand("@inject", [](const std::string& args) {
+registerCommand("@inject","(",")",  [](const std::string& args) {
     return args;
+});
+registerCommand("@function","<<",">>",  [](const std::string& args) {
+     return args;
 });
 ////////
     if (argc < 2) {
@@ -236,34 +332,32 @@ if (!comment && importline.find("import ") != std::string::npos) {
 }
  std::string funcline;
    while (std::getline(funcfile, funcline)) {
-        if(funcline.find("@function<<") != std::string::npos){
-            size_t pos = funcline.find("@function<<");
+    
+        /*  if(funcline != std::string::npos){   size_t pos = funcline.find("@function<<");
             std::string funcname = funcline.substr(pos + 11); // "@function(" 長度 10
-            funcname = funcname.substr(0, funcname.find(">>"));
+            funcname = funcname.substr(0, funcname.find(">>"));*/
+            std::string funcname = runCommand(funcline,true);
             bool comment=isComment(funcline);
              if (comment) {continue; }
             if (funcname.empty()) continue;
-             else {
                 outfile <<funcname+"\n";
-            }
-        }
     }
     bool enableoverwrite = false;
  if(enableoverwrite) outfile << "/*";
         outfile << "int main() {\n";
     std::string line;
-    std::string extraFlags; // 存 @command() 的內容
+    std::string extraFlags=""; // 存 @command() 的內容
     while (std::getline(infile, line)) {
         commentInReg=false;
         commentInReg=isComment(line);
-        std::string code = runCommand(line);
+        std::string code = runCommand(line,false);
         if (!code.empty()) outfile << code;
         if (commentInReg) {continue; }
         if (line.find("@command(") != std::string::npos) {
             size_t start = line.find("\"");
             size_t end = line.rfind("\"");
             if (start != std::string::npos && end != std::string::npos && end > start)
-                extraFlags = line.substr(start + 1, end - start - 1);
+                extraFlags += " " + line.substr(start + 1, end - start - 1);
         }
         if(line.find("#useclang")!= std::string::npos){enableclang=true;}
         if(line.find("#usegcc")!= std::string::npos){enableclang=false;}
