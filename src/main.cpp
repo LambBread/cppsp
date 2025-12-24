@@ -423,8 +423,7 @@ int main(int argc, char* argv[])
     ////////
     if (argc < 2)
     {
-        std::cerr
-                << "Usage: cppsp_compiler <file>\n";
+        std::cerr << "Usage: cppsp_compiler <file>\n";
         return 1;
     }
 
